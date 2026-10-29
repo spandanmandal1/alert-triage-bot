@@ -1,5 +1,7 @@
 # alert-triage-bot
 
+[![pipeline](https://gitlab.com/spandanmandal/alert-triage-bot/badges/main/pipeline.svg)](https://gitlab.com/spandanmandal/alert-triage-bot/-/pipelines) [![coverage](https://gitlab.com/spandanmandal/alert-triage-bot/badges/main/coverage.svg)](https://gitlab.com/spandanmandal/alert-triage-bot/-/pipelines)
+
 **When a production alert fires, this bot reads the logs for you and posts a first diagnosis next to the alert.**
 
 ![Demo: a checkout service starts failing, Prometheus fires an alert, and the bot posts the alert with the matching error logs and an AI-suggested cause](docs/images/demo.gif)
@@ -138,20 +140,16 @@ and if the webhook is slow, Alertmanager retries and you get duplicate messages.
 
 ## Deploy to Kubernetes
 
-A Helm chart is included in `charts/alert-triage-bot`. It passes `helm lint` and `kubeconform` but has **not yet
-been installed on a real cluster**, and the container image is **not published yet** (a GitLab CI pipeline will
-build and push it). Until then, build the image yourself and push it to a registry your cluster can pull from:
+A Helm chart is included in `charts/alert-triage-bot`. CI checks it with `helm lint` and `kubeconform`; it has
+**not yet been installed on a real cluster**. The image is published by CI to
+`registry.gitlab.com/spandanmandal/alert-triage-bot` and the chart uses it by default.
 
 ```bash
-docker build -t <your-registry>/alert-triage-bot:0.1.0 .
-docker push <your-registry>/alert-triage-bot:0.1.0
-
 kubectl create secret generic alert-triage-bot \
   --from-literal=SLACK_WEBHOOK_URL=https://hooks.slack.com/services/... \
   --from-literal=WEBHOOK_TOKEN=$(openssl rand -hex 16)
 
 helm install alert-triage-bot charts/alert-triage-bot \
-  --set image.repository=<your-registry>/alert-triage-bot \
   --set secret.existingSecret=alert-triage-bot \
   --set config.lokiUrl=http://loki-gateway.monitoring.svc \
   --set config.llmBaseUrl=http://llama-server.llm.svc:8080/v1 \
@@ -162,6 +160,23 @@ Then add the bot as an Alertmanager receiver. `helm install` prints the exact sn
 
 The pod runs as a non-root user, with a read-only filesystem and all Linux capabilities dropped. Run **one
 replica**: de-duplication is kept in memory.
+
+## CI/CD
+
+GitLab CI ([`.gitlab-ci.yml`](.gitlab-ci.yml)) runs on every merge request and on `main`:
+
+| Stage | Jobs |
+|---|---|
+| lint | `ruff`, `helm lint` |
+| test | `pytest` with coverage and JUnit report, `kubeconform` on the rendered chart |
+| build | Docker image pushed as `:<commit-sha>` |
+| scan | Trivy on the image (fails on any CRITICAL with a fix available) and on the Dockerfile, compose file and chart |
+| release | Only after the scans pass: tag `:latest` on `main`, `:1.2.3` and `:v1.2.3` on a `v1.2.3` git tag |
+
+At the time of writing, Trivy reports 0 CRITICAL and 44 HIGH findings in the image. All 44 are Debian base-image
+packages with no fixed version yet, so they are reported but don't block the release.
+
+The repository is developed on GitLab and mirrored to GitHub.
 
 ## Configuration
 
@@ -185,6 +200,7 @@ latency, and failed calls to Loki, the LLM or Slack.
 ## Project layout
 
 ```
+.gitlab-ci.yml       CI/CD pipeline
 src/triage/          the bot (FastAPI): webhook, Loki client, LLM client, Slack formatter, de-duplication
 tests/               43 tests; Loki, the LLM and Slack are mocked, so no network is needed
 charts/              Helm chart

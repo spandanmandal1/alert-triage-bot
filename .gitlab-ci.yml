@@ -133,3 +133,9 @@ release:
     - docker pull "$IMAGE_SHA"
     - docker tag "$IMAGE_SHA" "$IMAGE:$RELEASE_TAG"
     - docker push "$IMAGE:$RELEASE_TAG"
+    # the Helm chart's appVersion has no "v", so publish v1.2.3 as 1.2.3 too
+    - |
+      if [ "$RELEASE_TAG" != "${RELEASE_TAG#v}" ]; then
+        docker tag "$IMAGE_SHA" "$IMAGE:${RELEASE_TAG#v}"
+        docker push "$IMAGE:${RELEASE_TAG#v}"
+      fi
