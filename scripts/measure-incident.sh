@@ -4,6 +4,8 @@
 set -euo pipefail
 mode=${1:?mode}
 cd "$(dirname "$0")/.."
+# always put checkout back to healthy, even if this run fails
+trap 'curl -fsS -X POST "localhost:8000/mode?m=ok" >/dev/null || true' EXIT
 
 wait_for_no_alerts() {
   for _ in $(seq 1 90); do
@@ -36,4 +38,3 @@ outcome=$(python3 -c "import json,sys; print(json.loads(sys.argv[1])['outcome'])
 total=$(python3 -c "print(round($end - $start, 1))")
 
 printf '%s\ttotal=%ss\tbot=%ss\toutcome=%s\n%s\n' "$mode" "$total" "$bot_s" "$outcome" "${triage:-<no AI summary>}"
-curl -fsS -X POST "localhost:8000/mode?m=ok" >/dev/null

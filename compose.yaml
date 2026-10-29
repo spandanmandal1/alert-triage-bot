@@ -97,7 +97,11 @@ services:
       GF_AUTH_ANONYMOUS_ENABLED: "true"
       GF_AUTH_ANONYMOUS_ORG_ROLE: Admin
       GF_ANALYTICS_REPORTING_ENABLED: "false"
-    volumes: ["./demo/grafana/provisioning:/etc/grafana/provisioning:ro"]
+      GF_AUTH_DISABLE_LOGIN_FORM: "true"
+      GF_NEWS_NEWS_FEED_ENABLED: "false"
+    volumes:
+      - ./demo/grafana/provisioning:/etc/grafana/provisioning:ro
+      - ./demo/grafana/dashboards:/var/lib/grafana/dashboards:ro
     ports: ["3000:3000"]
     mem_limit: 192m
 
