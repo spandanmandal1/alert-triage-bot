@@ -1,0 +1,14 @@
+groups:
+  - name: checkout
+    rules:
+      - alert: HighErrorRate
+        expr: |
+          sum by (namespace, service) (rate(http_requests_total{code=~"5.."}[1m]))
+            /
+          sum by (namespace, service) (rate(http_requests_total[1m])) > 0.05
+        for: 30s
+        labels:
+          severity: critical
+        annotations:
+          summary: "{{ $labels.service }} 5xx rate above 5%"
+          description: "{{ $labels.service }} is returning {{ $value | humanizePercentage }} 5xx over the last minute"

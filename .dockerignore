@@ -1,0 +1,9 @@
+.venv
+.git
+tests
+demo
+charts
+docs
+**/__pycache__
+.coverage
+.env

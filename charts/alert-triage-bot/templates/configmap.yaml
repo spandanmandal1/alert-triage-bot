@@ -1,0 +1,13 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "triage.fullname" . }}
+  labels: {{- include "triage.labels" . | nindent 4 }}
+data:
+  LOKI_URL: {{ .Values.config.lokiUrl | quote }}
+  LLM_BASE_URL: {{ .Values.config.llmBaseUrl | quote }}
+  LLM_MODEL: {{ .Values.config.llmModel | quote }}
+  LLM_TIMEOUT: {{ .Values.config.llmTimeout | quote }}
+  GRAFANA_URL: {{ .Values.config.grafanaUrl | quote }}
+  DRY_RUN: {{ .Values.config.dryRun | quote }}
+  LOG_LEVEL: {{ .Values.config.logLevel | quote }}

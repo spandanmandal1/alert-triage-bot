@@ -1,0 +1,44 @@
+replicaCount: 1  # dedupe is in-memory, so keep one replica unless you accept rare double posts
+
+image:
+  repository: registry.gitlab.com/spandanmandal/alert-triage-bot
+  tag: ""  # defaults to .Chart.AppVersion
+  pullPolicy: IfNotPresent
+
+config:
+  lokiUrl: http://loki-gateway.monitoring.svc
+  llmBaseUrl: http://llama-server.llm.svc:8080/v1
+  llmModel: qwen2.5-0.5b-instruct
+  llmTimeout: "90"
+  grafanaUrl: ""
+  dryRun: false
+  logLevel: INFO
+
+# Keys: SLACK_WEBHOOK_URL, WEBHOOK_TOKEN, optional LLM_API_KEY.
+# Use an existing Secret (recommended), or let the chart create one from secret.values.
+secret:
+  existingSecret: ""
+  values: {}
+
+serviceMonitor:
+  enabled: false
+  interval: 30s
+  labels: {}
+
+podSecurityContext:
+  runAsNonRoot: true
+  runAsUser: 10001
+  seccompProfile: {type: RuntimeDefault}
+
+securityContext:
+  allowPrivilegeEscalation: false
+  readOnlyRootFilesystem: true
+  capabilities: {drop: [ALL]}
+
+resources:
+  requests: {cpu: 50m, memory: 64Mi}
+  limits: {memory: 128Mi}
+
+nodeSelector: {}
+tolerations: []
+affinity: {}

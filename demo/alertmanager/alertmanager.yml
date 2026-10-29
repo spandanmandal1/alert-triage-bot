@@ -1,0 +1,18 @@
+route:
+  receiver: triage-bot
+  group_by: [alertname, namespace, service]
+  group_wait: 5s
+  group_interval: 1m
+  repeat_interval: 1h
+
+receivers:
+  - name: triage-bot
+    webhook_configs:
+      - url: http://bot:8080/webhook/alertmanager
+        send_resolved: true
+        max_alerts: 10
+        http_config:
+          authorization:
+            type: Bearer
+            # local demo only; in Kubernetes this comes from a Secret (see the Helm chart)
+            credentials: demo-local-token
