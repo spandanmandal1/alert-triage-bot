@@ -66,8 +66,7 @@ services:
     volumes:
       - ./demo/alloy:/etc/alloy:ro
       - /var/run/docker.sock:/var/run/docker.sock:ro
-    # Start after the containers it ships logs for. When everything started at once, Alloy
-    # missed checkout and bot (still being created at its first discovery) and never tailed them.
+    # start after the containers it ships logs for, so their startup logs are not missed
     depends_on: [loki, bot, checkout]
     mem_limit: 128m
 

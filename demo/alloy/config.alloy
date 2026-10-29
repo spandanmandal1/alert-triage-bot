@@ -1,7 +1,9 @@
 // Ship container logs to Loki, labelled like Kubernetes would label them:
 // namespace=demo, service=<compose service name>.
 discovery.docker "containers" {
-  host = "unix:///var/run/docker.sock"
+  host             = "unix:///var/run/docker.sock"
+  // default is 60s; a new or recreated container's first minute of logs was missing in the demo
+  refresh_interval = "5s"
   filter {
     name   = "label"
     values = ["com.docker.compose.project=alert-triage-bot"]

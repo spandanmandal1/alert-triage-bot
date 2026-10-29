@@ -104,6 +104,10 @@ with `qwen2.5:0.5b` on CPU. One run per failure mode, 29 Oct 2026.
 | `db_pool` | 58.6 s | 8.5 s | Partly: "analyze database connections", plus an unfounded "security vulnerability" |
 | `bad_config` | 57.9 s | 8.3 s | No: suggested database and payment checks, missed the missing config file |
 
+**LLM down (tested for real):** with the Ollama container stopped, a `bad_config` incident still produced a
+message 52.8 s after the failure, with the error logs and "No AI summary (LLM request failed: ConnectError)".
+The bot's part took 0.25 s.
+
 **What the numbers mean:**
 
 - About 50 s of each total is the alerting pipeline doing its job: the 1-minute error-rate window, the rule's
@@ -134,14 +138,20 @@ and if the webhook is slow, Alertmanager retries and you get duplicate messages.
 
 ## Deploy to Kubernetes
 
-A Helm chart is included in `charts/alert-triage-bot`.
+A Helm chart is included in `charts/alert-triage-bot`. It passes `helm lint` and `kubeconform` but has **not yet
+been installed on a real cluster**, and the container image is **not published yet** (a GitLab CI pipeline will
+build and push it). Until then, build the image yourself and push it to a registry your cluster can pull from:
 
 ```bash
+docker build -t <your-registry>/alert-triage-bot:0.1.0 .
+docker push <your-registry>/alert-triage-bot:0.1.0
+
 kubectl create secret generic alert-triage-bot \
   --from-literal=SLACK_WEBHOOK_URL=https://hooks.slack.com/services/... \
   --from-literal=WEBHOOK_TOKEN=$(openssl rand -hex 16)
 
 helm install alert-triage-bot charts/alert-triage-bot \
+  --set image.repository=<your-registry>/alert-triage-bot \
   --set secret.existingSecret=alert-triage-bot \
   --set config.lokiUrl=http://loki-gateway.monitoring.svc \
   --set config.llmBaseUrl=http://llama-server.llm.svc:8080/v1 \
@@ -195,10 +205,11 @@ make lint    # ruff
 
 The unit tests passed from the start. Running the full stack still found three real bugs:
 
-- **Logs from two services never reached Loki.** All containers started at once, and Alloy's first scan for
-  containers ran while `checkout` and the bot were still being created. It never picked them up. Loki had logs
-  from every service except the two that mattered. Found by comparing Loki's `lines_received` counter with the
-  expected volume. Fixed by starting Alloy after the services it watches.
+- **Logs from the two services that mattered were missing.** Right after startup, Loki had logs from every
+  container except `checkout` and the bot. My first diagnosis was that Alloy had missed them for good, and
+  restarting Alloy "fixed" it. A later test showed the real cause: Alloy looks for new containers only every
+  60 s by default, and containers created after its first scan wait for the next one. I had restarted it before
+  that happened. Fixed by scanning every 5 s and starting Alloy after the services it watches.
 - **Repeated errors weren't merged.** The tests used plain log lines, but real JSON logs carry a timestamp, so
   every line looked unique. The AI got 10 copies of one error instead of 10 different clues. Fixed by stripping
   timestamps and converting JSON to `key=value` text before comparing.
