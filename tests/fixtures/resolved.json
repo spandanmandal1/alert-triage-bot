@@ -1,0 +1,22 @@
+{
+  "version": "4",
+  "groupKey": "{}:{alertname=\"HighErrorRate\"}",
+  "truncatedAlerts": 0,
+  "status": "resolved",
+  "receiver": "triage-bot",
+  "groupLabels": {"alertname": "HighErrorRate"},
+  "commonLabels": {"alertname": "HighErrorRate"},
+  "commonAnnotations": {},
+  "externalURL": "http://alertmanager:9093",
+  "alerts": [
+    {
+      "status": "resolved",
+      "labels": {"alertname": "HighErrorRate", "severity": "critical", "namespace": "shop", "service": "checkout"},
+      "annotations": {"summary": "checkout 5xx rate above 5%"},
+      "startsAt": "2026-10-29T10:00:00Z",
+      "endsAt": "2026-10-29T10:12:00Z",
+      "generatorURL": "http://prometheus:9090/graph?g0.expr=rate",
+      "fingerprint": "a1b2c3d4e5f60718"
+    }
+  ]
+}

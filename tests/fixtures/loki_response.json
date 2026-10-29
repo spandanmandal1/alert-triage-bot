@@ -1,0 +1,21 @@
+{
+  "status": "success",
+  "data": {
+    "resultType": "streams",
+    "result": [
+      {
+        "stream": {"service": "checkout", "level": "error"},
+        "values": [
+          ["1761732000000000000", "level=error msg=\"payment call failed\" err=\"context deadline exceeded\" upstream=payment:8080"],
+          ["1761731990000000000", "level=error msg=\"payment call failed\" err=\"context deadline exceeded\" upstream=payment:8080"]
+        ]
+      },
+      {
+        "stream": {"service": "checkout", "level": "warn"},
+        "values": [
+          ["1761731995000000000", "level=warn msg=\"retrying payment\" attempt=3"]
+        ]
+      }
+    ]
+  }
+}

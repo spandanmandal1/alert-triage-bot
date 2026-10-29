@@ -1,0 +1,45 @@
+[project]
+name = "alert-triage-bot"
+version = "0.1.0"
+description = "Enriches Alertmanager alerts with Loki logs and a self-hosted LLM's likely cause, then posts to Slack"
+authors = [
+    { name = "Spandan Mandal", email = "98513527+spandanmandal1@users.noreply.github.com" }
+]
+requires-python = ">=3.12,<3.13"
+dependencies = [
+    "fastapi>=0.162.0",
+    "httpx>=0.28.1",
+    "prometheus-client>=0.26.0",
+    "pydantic-settings>=2.16.2",
+    "uvicorn[standard]>=0.54.0",
+]
+
+[build-system]
+requires = ["uv_build>=0.13.5,<0.14.0"]
+build-backend = "uv_build"
+
+[tool.uv.build-backend]
+module-name = "triage"
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+testpaths = ["tests"]
+
+[tool.ruff]
+line-length = 110
+target-version = "py312"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "B", "UP", "ASYNC", "SIM"]
+
+[tool.coverage.run]
+source = ["triage"]
+
+[dependency-groups]
+dev = [
+    "pytest>=9.2.0",
+    "pytest-asyncio>=1.4.1",
+    "pytest-cov>=7.1.0",
+    "respx>=0.23.1",
+    "ruff>=0.17.3",
+]
