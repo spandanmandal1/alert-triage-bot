@@ -24,9 +24,11 @@ class Deduper:
         if key in self._seen:
             return True
         self._seen[key] = now
-        if status == "resolved":
-            # a later firing of the same alert is a new incident
-            self._seen.pop((fingerprint, "firing"), None)
+        # A state change makes the opposite state news again. Without this, an alert that
+        # flaps (fire, resolve, fire, resolve) within the TTL had its second resolve and
+        # every later firing dropped as duplicates.
+        opposite = "firing" if status == "resolved" else "resolved"
+        self._seen.pop((fingerprint, opposite), None)
         return False
 
     def _evict(self, now: float) -> None:

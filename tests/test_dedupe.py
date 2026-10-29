@@ -41,3 +41,14 @@ def test_expired_entries_are_evicted():
     clock.now += 11
     d.is_duplicate("new", "firing")
     assert len(d) == 1
+
+
+def test_flapping_alert_is_not_suppressed():
+    # fire -> resolve -> fire -> resolve -> fire, all inside the TTL: every transition is news
+    clock = FakeClock()
+    d = Deduper(ttl_seconds=3600, clock=clock)
+    for status in ["firing", "resolved", "firing", "resolved", "firing"]:
+        clock.now += 60
+        assert d.is_duplicate("fp1", status) is False, status
+    # but a retry of the current state is still a duplicate
+    assert d.is_duplicate("fp1", "firing") is True

@@ -1,4 +1,6 @@
+import json
 import logging
+import re
 from datetime import timedelta
 
 import httpx
@@ -13,6 +15,14 @@ log = logging.getLogger(__name__)
 WORKLOAD_LABELS = ("service", "app", "job", "container", "pod")
 LINE_FILTER = '|~ "(?i)(error|warn|exception|fatal|panic|timeout|refused)"'
 MAX_LINE_LEN = 300
+
+# Timestamps make otherwise identical lines unique, which defeats repeat-collapsing and wastes
+# the small model's context. Loki already has the time of every entry.
+TIME_KEYS = {"ts", "time", "timestamp", "@timestamp"}
+LEADING_TIMESTAMP = re.compile(
+    r"^\s*\d{4}-\d{2}-\d{2}[T ]\d{2}:\d{2}:\d{2}(?:[.,]\d+)?(?:Z|[+-]\d{2}:?\d{2})?\s*"
+)
+LOGFMT_TIMESTAMP = re.compile(r"\b(?:ts|time|timestamp)=\S+\s*")
 
 
 def _quote(value: str) -> str:
@@ -31,13 +41,35 @@ def build_logql(labels: dict[str, str]) -> str | None:
     return "{" + ", ".join(matchers) + "} " + LINE_FILTER
 
 
+def _logfmt_value(value: object) -> str:
+    text = value if isinstance(value, str) else json.dumps(value)
+    return f'"{text}"' if " " in text or not text else text
+
+
+def normalize_line(line: str) -> str:
+    """Drop timestamps and render JSON logs as compact logfmt, so repeats compare equal."""
+    line = line.strip()
+    if line.startswith("{"):
+        try:
+            record = json.loads(line)
+        except ValueError:
+            record = None
+        if isinstance(record, dict):
+            fields = {k: v for k, v in record.items() if k not in TIME_KEYS}
+            ordered = [k for k in ("level", "msg", "message") if k in fields]
+            ordered += [k for k in fields if k not in ordered]
+            return " ".join(f"{k}={_logfmt_value(fields[k])}" for k in ordered)
+    line = LEADING_TIMESTAMP.sub("", line)
+    return LOGFMT_TIMESTAMP.sub("", line).strip()
+
+
 def extract_lines(data: dict, max_lines: int, max_chars: int) -> list[str]:
     """Flatten a query_range response to unique lines, newest first, within the size budget."""
     streams = (data.get("data") or {}).get("result") or []
     entries: list[tuple[int, str]] = []
     for stream in streams:
         for ts, line in stream.get("values") or []:
-            entries.append((int(ts), line.strip()[:MAX_LINE_LEN]))
+            entries.append((int(ts), normalize_line(line)[:MAX_LINE_LEN]))
     entries.sort(key=lambda e: e[0], reverse=True)
 
     counts: dict[str, int] = {}

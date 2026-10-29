@@ -79,3 +79,28 @@ async def test_fetch_logs_returns_empty_on_timeout(settings, checkout_alert):
     respx.get("http://loki.test/loki/api/v1/query_range").mock(side_effect=httpx.ReadTimeout("slow"))
     async with httpx.AsyncClient() as client:
         assert await fetch_logs(client, checkout_alert, settings) == []
+
+
+def _stream(*lines: str) -> dict:
+    values = [[str(1_000 + i), line] for i, line in enumerate(lines)]
+    return {"data": {"result": [{"stream": {}, "values": values}]}}
+
+
+def test_json_lines_collapse_when_only_timestamp_differs():
+    data = _stream(
+        '{"ts": "2026-10-29T04:38:27.1Z", "level": "error", "msg": "payment call failed", "up": "p:80"}',
+        '{"ts": "2026-10-29T04:38:28.2Z", "level": "error", "msg": "payment call failed", "up": "p:80"}',
+    )
+    assert extract_lines(data, max_lines=10, max_chars=1000) == [
+        'level=error msg="payment call failed" up=p:80 (x2)'
+    ]
+
+
+def test_plain_lines_drop_leading_timestamp():
+    data = _stream(
+        "2026-10-29T04:38:27.123Z ERROR db pool exhausted",
+        "2026-10-29 04:38:28,456 ERROR db pool exhausted",
+        "time=2026-10-29T04:38:29Z level=error msg=boom",
+    )
+    lines = extract_lines(data, max_lines=10, max_chars=1000)
+    assert lines == ["level=error msg=boom", "ERROR db pool exhausted (x2)"]
