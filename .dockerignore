@@ -7,3 +7,5 @@ docs
 **/__pycache__
 .coverage
 .env
+.uv-cache
+.trivy-cache
